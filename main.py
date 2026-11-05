@@ -7,8 +7,9 @@ import threading
 import time
 import unicodedata
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -20,7 +21,17 @@ from sqlalchemy.orm import DeclarativeBase, Session
 
 ROOT = Path(__file__).resolve().parent
 MARKETS = ("Guanabara", "Assaí", "Prezunic", "Mundial", "Rede Economia", "Supermarket")
-GUANABARA_URL = "https://supermercadosguanabara.com.br/produtos/2"
+GUANABARA_URL = "https://www.supermercadosguanabara.com.br/produtos/2"
+GUANABARA_SOURCES = tuple("https://www.supermercadosguanabara.com.br/produtos/" + str(i) for i in
+                           (2, 12, 22, 32, 42, 52, 62, 72, 82, 92, 102, 112, 152, 203))
+MARKET_PAGES = {
+    "Guanabara": "https://www.supermercadosguanabara.com.br/produtos",
+    "Assaí": "https://www.assai.com.br/ofertas",
+    "Prezunic": "https://www.prezunic.com.br/",
+    "Mundial": "https://www.supermercadosmundial.com.br/encarte",
+    "Rede Economia": "https://www.redeconomia.com.br/encartes/",
+    "Supermarket": "https://redesupermarket.com.br/",
+}
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "true").lower() in ("true", "1", "yes")
 INTERVAL = max(900, int(os.getenv("REFRESH_INTERVAL_SECONDS", "3600")))
@@ -75,7 +86,7 @@ with Session(engine) as session:
         session.add_all(Product(id=p["id"], name=p["name"], category=p["category"]) for p in items)
         session.commit()
 
-app = FastAPI(title="MercadoRadar RJ", version="9.1.0")
+app = FastAPI(title="MercadoRadar RJ", version="10.0.0")
 
 def today():
     return datetime.now(ZoneInfo("America/Sao_Paulo")).date()
@@ -85,12 +96,17 @@ def normalize(value):
     return re.sub(r"[^a-z0-9]+", " ", value).strip()
 
 def canonical(value):
-    aliases = {"feigao": "feijao", "fejao": "feijao", "arroiz": "arroz", "arros": "arroz"}
-    return " ".join(aliases.get(x, x) for x in normalize(value).split())
+    aliases = {"feigao": "feijao", "fejao": "feijao", "arroiz": "arroz", "arros": "arroz",
+               "dentifricio": "creme dental", "dentifrico": "creme dental"}
+    value = normalize(value)
+    value = re.sub(r"\bpasta\s+(?:de\s+)?dentes?\b", "creme dental", value)
+    value = re.sub(r"\bpasta\s+dental\b", "creme dental", value)
+    value = re.sub(r"\bextra\s+virgem\b", "extravirgem", value)
+    return " ".join(aliases.get(x, x) for x in value.split())
 
 def match(name, query):
     query = canonical(query)
-    words = normalize(name).split()
+    words = canonical(name).split()
     if not query or query in " ".join(words):
         return True
     return all(any(difflib.SequenceMatcher(None, a, b).ratio() >= .79 for b in words) for a in query.split())
@@ -125,7 +141,7 @@ class IncomingOffer(BaseModel):
     price: float = Field(gt=0)
     source: HttpUrl
     checked_at: str
-    valid_until: str
+    valid_until: str = ""
     condition: str = ""
     is_promotion: bool = False
 
@@ -135,10 +151,18 @@ def save_promotions(records):
         for raw in records:
             try:
                 o = IncomingOffer.model_validate(raw)
-                if o.market not in MARKETS or o.unit not in ("kg", "l", "un") or not o.is_promotion:
+                if o.market not in MARKETS or o.unit not in ("kg", "l", "un"):
                     continue
-                if date.fromisoformat(o.checked_at[:10]) > today() or date.fromisoformat(o.valid_until) < today():
+                if date.fromisoformat(o.checked_at[:10]) > today():
                     continue
+                if o.is_promotion:
+                    if not o.valid_until or date.fromisoformat(o.valid_until) < today():
+                        continue
+                else:
+                    # Ordinary online prices are indicative and expire from the index after ten days.
+                    if date.fromisoformat(o.checked_at[:10]) < today() - timedelta(days=10):
+                        continue
+                    o.valid_until = ""
                 vals = o.model_dump(mode="json")
                 key = dict(market=o.market, store=o.store, name=o.name, quantity=o.quantity, unit=o.unit, source=str(o.source))
                 prior = session.execute(select(Promotion).filter_by(**key)).scalar_one_or_none()
@@ -155,13 +179,15 @@ def save_promotions(records):
 
 def load_verified_seed():
     """Load dated, publicly checked promotions. Expired rows are rejected."""
-    path = ROOT / "data" / "promotions_seed_2026_11_05.json"
-    if not path.exists():
-        return 0
-    try:
-        return save_promotions(json.loads(path.read_text(encoding="utf-8")))
-    except (OSError, ValueError, TypeError):
-        return 0
+    total = 0
+    for name in ("promotions_seed_2026_11_05.json", "precos_publicados_2026_11_05.json"):
+        path = ROOT / "data" / name
+        if path.exists():
+            try:
+                total += save_promotions(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError, TypeError):
+                pass
+    return total
 
 load_verified_seed()
 
