@@ -262,7 +262,7 @@ def maybe_refresh(wait=False):
 
 @app.get("/")
 def home():
-    return FileResponse(ROOT / "static" / "index.html")
+    return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-store, max-age=0"})
 
 @app.get("/api/health")
 def health():
