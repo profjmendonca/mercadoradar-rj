@@ -2,7 +2,7 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MercadoRadar RJ | Promoções</title>
 <style>
-:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#173429;background:#f3f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:960px;margin:auto;padding:20px}header{background:linear-gradient(135deg,#087e5c,#10583f);color:#fff;padding:28px;border-radius:18px}h1{margin:0 0 8px}header p{margin:0;opacity:.9}.card{background:#fff;border:1px solid #d5e3db;border-radius:15px;padding:18px;margin:15px 0;box-shadow:0 3px 12px #17452a0a}label{font-weight:650}input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #b9cfc2}input{width:100%;margin-top:10px}button{cursor:pointer;background:#087e5c;color:#fff;border:0;font-weight:600}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.controls select{flex:1;min-width:160px}.muted{color:#597466;font-size:14px}.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}.offer{border:1px solid #d8e8df;border-radius:12px;padding:15px}.best{border-color:#13996b;background:#f3fbf6}.price{font-size:24px;font-weight:750;color:#087e5c}.pill{display:inline-block;border-radius:12px;padding:4px 9px;background:#e6f4eb;font-size:12px;margin:3px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.warn{background:#fff8e8;border-left:4px solid #e1ad41;padding:12px;border-radius:7px}a{color:#006b4c}small{color:#50665c}h2{margin:0 0 12px;font-size:19px}h3{margin:10px 0}#status{margin-top:12px}#results:empty{display:none}
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#173429;background:#f3f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:960px;margin:auto;padding:20px}header{background:linear-gradient(135deg,#087e5c,#10583f);color:#fff;padding:28px;border-radius:18px}h1{margin:0 0 8px}header p{margin:0;opacity:.9}.card{background:#fff;border:1px solid #d5e3db;border-radius:15px;padding:18px;margin:15px 0;box-shadow:0 3px 12px #17452a0a}label{font-weight:650}input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #b9cfc2}input{width:100%;margin-top:10px}button{cursor:pointer;background:#087e5c;color:#fff;border:0;font-weight:600}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.controls select{flex:1;min-width:160px}.muted{color:#597466;font-size:14px}.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}.offer{border:1px solid #d8e8df;border-radius:12px;padding:15px}.best{border-color:#13996b;background:#f3fbf6}.unconfirmed{border-color:#e6bd6c;background:#fffbf1}.group-label{margin:22px 0 12px;font-size:19px}.summary{background:#f2fbf5;border:1px solid #a3dac1;border-radius:12px;padding:14px;margin:12px 0}.summary strong{color:#087e5c}.price{font-size:24px;font-weight:750;color:#087e5c}.pill{display:inline-block;border-radius:12px;padding:4px 9px;background:#e6f4eb;font-size:12px;margin:3px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.warn{background:#fff8e8;border-left:4px solid #e1ad41;padding:12px;border-radius:7px}a{color:#006b4c}small{color:#50665c}h2{margin:0 0 12px;font-size:19px}h3{margin:10px 0}#status{margin-top:12px}#results:empty{display:none}
 </style></head>
 <body><main class="wrap"><header><h1>🛒 MercadoRadar RJ</h1><p>500 produtos pesquisáveis. Somente promoções anunciadas, com prazo de validade e fonte.</p></header>
 <section class="card"><label for="search">O que você procura?</label><input id="search" value="arroz" placeholder="Ex.: arroz, feijão, feijao, feigao..." autocomplete="off">
@@ -20,14 +20,34 @@ async function load(){
  try{
   const [p,o,s]=await Promise.all([json('/api/products?q='+encodeURIComponent(q)+'&limit=100'),json('/api/offers?q='+encodeURIComponent(q)+'&market='+encodeURIComponent(m)),json('/api/status')]);
   E('catalog').innerHTML=p.count+' produto(s) correspondente(s). '+p.products.slice(0,35).map(x=>'<span class="pill">'+escapeHtml(x.name)+'</span>').join('');
-  E('status').textContent=o.count+' promoção(ões) vigente(s) registrada(s) • '+s.products+' produtos no catálogo • '+Object.keys(s.configured_sources).join(', ')+' (fonte em teste)';
-  if(!o.offers.length){E('results').innerHTML='<section class="card"><h2>Nenhuma promoção válida registrada</h2><p>Não há preços promocionais confirmados para esta consulta. Os coletores ainda estão em desenvolvimento; o sistema não inventa ofertas.</p></section>';return}
-  const grouped={};for(const offer of o.offers){const key=offer.brand+' | '+(offer.kind||'tipo não identificado');(grouped[key]??=[]).push(offer)}
-  let html='';for(const key of Object.keys(grouped).sort((a,b)=>a.localeCompare(b,'pt-BR'))){
-   const items=grouped[key].sort((a,b)=>a.price/a.quantity-b.price/b.quantity);
-   html+='<section class="card"><h2>'+escapeHtml(key)+'</h2><div class="offers">';
-   for(const [i,x] of items.entries()){html+='<div class="offer '+(i===0?'best':'')+'"><div class="row"><strong>'+escapeHtml(x.market)+'</strong>'+(i===0?'<span class="pill">Melhor desta marca</span>':'')+'</div><h3>'+escapeHtml(x.name)+'</h3><div class="price">'+money(x.price)+'</div><strong>'+money(x.price/x.quantity)+' / '+escapeHtml(x.unit)+'</strong><p><small>Loja: '+escapeHtml(x.store||'não indicada')+'<br>Válida até: '+escapeHtml(x.valid_until)+'<br>Verificada: '+escapeHtml(x.checked_at.slice(0,10))+'<br>'+escapeHtml(x.condition||'')+'</small></p><a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(x.source)+'">Conferir anúncio original</a></div>'}
-   html+='</div></section>'}
+  E('status').textContent=o.count+' promoção(ões) vigente(s) registrada(s) • '+s.products+' produtos no catálogo'+(o.type_unspecified?' • '+o.type_unspecified+' sem variedade confirmada':'');
+  if(!o.offers.length){const issues=(s.collectors||[]).filter(x=>x.last_error).map(x=>escapeHtml(x.last_error)).join('; ');E('results').innerHTML='<section class="card"><h2>Nenhuma promoção válida registrada</h2><p>Não há preços promocionais confirmados para esta consulta. O sistema não inventa ofertas.</p>'+(issues?'<p class="muted">Coletor: '+issues+'</p>':'<p class="muted">O coletor pode ainda não ter atualizado seus dados.</p>')+'</section>';return}
+  const confirmed=o.offers.filter(x=>x.match_quality!=='type_unspecified');
+  const possible=o.offers.filter(x=>x.match_quality==='type_unspecified');
+  let html='';
+  if(confirmed.length){
+    const best=[...confirmed].sort((a,b)=>a.price/a.quantity-b.price/b.quantity)[0];
+    html+='<section class="summary"><strong>Menor preço por '+escapeHtml(best.unit)+' entre os anúncios compatíveis:</strong> '+money(best.price/best.quantity)+'/'+escapeHtml(best.unit)+' — '+escapeHtml(best.name)+' no '+escapeHtml(best.market)+'. <small>Confira marca, embalagem, condições e validade na fonte.</small></section>';
+  }
+  if(possible.length && q.trim()){
+    html+='<section class="card warn"><strong>Resultados adicionais com tipo não informado</strong><p>'+possible.length+' anúncio(s) podem corresponder a "'+escapeHtml(q)+'", mas não indicam a variedade. Estão separados e não participam da escolha de melhor oferta para o tipo solicitado.</p></section>';
+  }
+  const sections=[{title:'Promoções correspondentes',records:confirmed,possible:false},{title:'Anúncios com variedade não identificada',records:possible,possible:true}];
+  for(const section of sections){
+    if(!section.records.length)continue;
+    html+='<h2 class="group-label">'+section.title+'</h2>';
+    const grouped={};
+    for(const offer of section.records){const key=offer.brand+' | '+(offer.kind||'tipo não informado');(grouped[key]??=[]).push(offer)}
+    for(const key of Object.keys(grouped).sort((a,b)=>a.localeCompare(b,'pt-BR'))){
+      const items=grouped[key].sort((a,b)=>a.price/a.quantity-b.price/b.quantity);
+      html+='<section class="card"><h2>'+escapeHtml(key)+'</h2><div class="offers">';
+      for(const [i,x] of items.entries()){
+        const highlight=!section.possible && i===0;
+        html+='<div class="offer '+(highlight?'best':section.possible?'unconfirmed':'')+'"><div class="row"><strong>'+escapeHtml(x.market)+'</strong>'+(highlight?'<span class="pill">Menor preço nesta marca/tipo</span>':section.possible?'<span class="pill">Variedade não confirmada</span>':'')+'</div><h3>'+escapeHtml(x.name)+'</h3><div class="price">'+money(x.price)+'</div><strong>'+money(x.price/x.quantity)+' / '+escapeHtml(x.unit)+'</strong><p><small>Loja: '+escapeHtml(x.store||'não indicada')+'<br>Válida até: '+escapeHtml(x.valid_until)+'<br>Verificada: '+escapeHtml(x.checked_at.slice(0,10))+'<br>'+escapeHtml(x.condition||'')+'</small></p><a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(x.source)+'">Conferir anúncio original</a></div>'
+      }
+      html+='</div></section>'
+    }
+  }
   E('results').innerHTML=html;
  }catch(err){E('status').textContent='Não foi possível acessar a API do servidor.';E('results').innerHTML='<section class="card warn">A página deve ser aberta pela hospedagem do servidor, não como um arquivo HTML isolado.</section>'}
 }
