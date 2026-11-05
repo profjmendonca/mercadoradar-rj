@@ -210,8 +210,69 @@ class PlainText(HTMLParser):
         if not self.skip:
             self.parts.append(data)
 
-def parse_guanabara(html, checked_at=None):
-    """Experimental parser. Does not import prices without an explicit, unexpired validity date."""
+BRANDS = (
+    "Quinta do Arieiro", "Prato Fino", "Panela de Barro", "Rei do Sul", "Blue Ville", "O-Live",
+    "Andorinha", "Combrasil", "Carreteiro", "Tio João", "Piracanjuba", "Mundial", "Prezunic",
+    "Colgate", "Sorriso", "Closeup", "Sensodyne", "Oral-B", "Moça", "Ninho", "Borges",
+    "Gallo", "Camil", "Dulfar", "Pillon", "Sadia", "Perdigão", "Ypê", "Liza", "Soya",
+    "Pramesa", "Heinz", "Hellmanns", "Nestlé", "Chamyto", "Batavo", "Italac",
+    "Glória", "Elegê", "Danoninho", "Sanes", "Kicaldo", "Copa", "Macio", "Máximo",
+    "Ouro Nobre", "Dove", "Neve", "Rexona", "Nivea", "Seda", "Pantene",
+    "Sazon", "Knorr", "Maggi", "Fazenda", "Yoki", "Coamo", "Coca-Cola", "Copra", "Sococo",
+)
+UNSUITABLE = re.compile(
+    r"\b(cerveja|vinho|whisky|whiskey|vodka|cachaca|licor|espumante|tequila|gin|rum|conhaque)\b",
+    re.I,
+)
+
+def product_kind(name):
+    n = canonical(name)
+    if n.startswith("arroz"):
+        return next((s for s in ("parboilizado", "integral", "branco") if s in n), "não identificado")
+    if n.startswith("feijao"):
+        return next((s for s in ("preto", "carioca", "branco", "fradinho", "vermelho") if s in n), "não identificado")
+    if n.startswith("azeite"):
+        return "extravirgem" if "extravirgem" in n else ("tipo único" if "tipo unico" in n else "azeite")
+    if n.startswith("creme dental") or n.startswith("pasta de dente"):
+        return "creme dental"
+    if n.startswith("creme de leite"):
+        return "creme de leite"
+    if n.startswith("leite condensado"):
+        return "leite condensado"
+    if n.startswith("leite fermentado"):
+        return "leite fermentado"
+    if n.startswith("leite de coco"):
+        return "leite de coco"
+    if n.startswith("leite"):
+        return "leite UHT" if "uht" in n else "leite"
+    return n.split()[0] if n else "não identificado"
+
+def infer_brand(name):
+    norm = canonical(name)
+    for brand in sorted(BRANDS, key=len, reverse=True):
+        if re.search(r"\b" + re.escape(canonical(brand)) + r"\b", norm):
+            return brand
+    return "Marca não informada"
+
+def package_measure(name):
+    matches = re.findall(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|litros?|l)\b", name, re.I)
+    if len(matches) != 1:
+        if not matches and re.search(r"\bkg\b", name, re.I):
+            return 1.0, "kg"
+        return None
+    size, unit = matches[0]
+    qty = float(size.replace(",", "."))
+    unit = unit.lower()
+    if unit == "g":
+        return qty / 1000, "kg"
+    if unit == "kg":
+        return qty, "kg"
+    if unit == "ml":
+        return qty / 1000, "l"
+    return qty, "l"
+
+def parse_guanabara(html, checked_at=None, source=GUANABARA_URL):
+    """Collect all advertised categories, rejecting products with ambiguous size or no valid date."""
     parser = PlainText()
     parser.feed(html)
     lines = [re.sub(r"\s+", " ", x).strip() for x in "".join(parser.parts).splitlines()]
@@ -225,28 +286,26 @@ def parse_guanabara(html, checked_at=None):
         return []
     if validity < today():
         return []
-    result = []
+    collected = []
     for i, line in enumerate(lines[:-1]):
         if not re.fullmatch(r"(?:R\$\s*)?\d{1,4}[.,]\d{2}(?:\s+cada)?", line, re.I):
             continue
-        name = lines[i + 1]
-        if not re.search(r"\b(arroz|feij[aã]o)\b", name, re.I):
+        name = lines[i + 1].strip()
+        if len(name) < 5 or UNSUITABLE.search(canonical(name)):
             continue
-        weight = re.search(r"(?:(\d+(?:[,.]\d+)?)\s*)?(kg|g)\b", name, re.I)
-        if not weight:
+        measure = package_measure(name)
+        if measure is None:
             continue
-        quantity = float((weight[1] or "1").replace(",", ".")) * (.001 if weight[2].lower() == "g" else 1)
+        quantity, unit = measure
         price = float(re.search(r"\d{1,4}[.,]\d{2}", line)[0].replace(",", "."))
-        norm = normalize(name)
-        kind = next((k for k in ("preto", "carioca", "parboilizado", "integral", "branco") if k in norm), "não identificado")
-        brand = re.sub(r"^\s*(arroz|feij[aã]o)\s*", "", name, flags=re.I)
-        brand = re.sub(r"\b(?:branco|preto|carioca|parboilizado|integral)\b", " ", brand, flags=re.I)
-        brand = re.sub(r"\s*(?:\d+(?:[,.]\d+)?\s*)?(?:kg|g)\b.*$", "", brand, flags=re.I)
-        brand = re.sub(r"\s+", " ", brand).strip() or "Não identificada"
-        result.append(dict(market="Guanabara", store="", name=name, brand=brand, kind=kind, quantity=quantity,
-                           unit="kg", price=price, source=GUANABARA_URL, checked_at=checked_at or datetime.now(timezone.utc).isoformat(),
-                           valid_until=validity.isoformat(), condition="Confira validade e regras na loja", is_promotion=True))
-    return result
+        collected.append(dict(
+            market="Guanabara", store="", name=name, brand=infer_brand(name),
+            kind=product_kind(name), quantity=quantity, unit=unit, price=price, source=source,
+            checked_at=checked_at or datetime.now(timezone.utc).isoformat(),
+            valid_until=validity.isoformat(), condition="Oferta publicada; confirme filial, estoque e condições.",
+            is_promotion=True,
+        ))
+    return collected
 
 lock = threading.Lock()
 last_attempt = 0.
