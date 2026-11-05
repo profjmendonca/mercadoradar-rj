@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MercadoRadar RJ | Promoções</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#173429;background:#f3f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:960px;margin:auto;padding:20px}header{background:linear-gradient(135deg,#087e5c,#10583f);color:#fff;padding:28px;border-radius:18px}h1{margin:0 0 8px}header p{margin:0;opacity:.9}.card{background:#fff;border:1px solid #d5e3db;border-radius:15px;padding:18px;margin:15px 0;box-shadow:0 3px 12px #17452a0a}label{font-weight:650}input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #b9cfc2}input{width:100%;margin-top:10px}button{cursor:pointer;background:#087e5c;color:#fff;border:0;font-weight:600}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.controls select{flex:1;min-width:160px}.muted{color:#597466;font-size:14px}.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}.offer{border:1px solid #d8e8df;border-radius:12px;padding:15px}.best{border-color:#13996b;background:#f3fbf6}.price{font-size:24px;font-weight:750;color:#087e5c}.pill{display:inline-block;border-radius:12px;padding:4px 9px;background:#e6f4eb;font-size:12px;margin:3px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.warn{background:#fff8e8;border-left:4px solid #e1ad41;padding:12px;border-radius:7px}a{color:#006b4c}small{color:#50665c}h2{margin:0 0 12px;font-size:19px}h3{margin:10px 0}#status{margin-top:12px}#results:empty{display:none}
+</style></head>
+<body><main class="wrap"><header><h1>🛒 MercadoRadar RJ</h1><p>500 produtos pesquisáveis. Somente promoções anunciadas, com prazo de validade e fonte.</p></header>
+<section class="card"><label for="search">O que você procura?</label><input id="search" value="arroz" placeholder="Ex.: arroz, feijão, feijao, feigao..." autocomplete="off">
+<div class="controls"><select id="market"><option value="">Todos os supermercados</option></select><button id="compare">Comparar promoções</button><button id="reload">Atualizar</button></div><div id="status" class="muted">Consultando banco de dados…</div></section>
+<section id="results"></section><section class="card"><h2>Produtos disponíveis para pesquisa</h2><div id="catalog" class="muted"></div></section>
+<p class="muted">Apenas promoções verificadas e dentro da validade. Resultados podem variar por loja, cadastro e estoque. Nenhuma oferta encontrada não significa produto indisponível.</p></main>
+<script>
+const E=id=>document.getElementById(id), escapeHtml=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const markets=['Guanabara','Assaí','Prezunic','Mundial','Rede Economia','Supermarket'];
+for(const name of markets){const option=document.createElement('option');option.value=name;option.textContent=name;E('market').append(option)}
+async function json(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error('Servidor indisponível');return response.json()}
+async function load(){
+ const q=E('search').value.trim(),m=E('market').value;E('status').textContent='Consultando ofertas válidas…';E('results').innerHTML='';
+ try{
+  const [p,o,s]=await Promise.all([json('/api/products?q='+encodeURIComponent(q)+'&limit=100'),json('/api/offers?q='+encodeURIComponent(q)+'&market='+encodeURIComponent(m)),json('/api/status')]);
+  E('catalog').innerHTML=p.count+' produto(s) correspondente(s). '+p.products.slice(0,35).map(x=>'<span class="pill">'+escapeHtml(x.name)+'</span>').join('');
+  E('status').textContent=o.count+' promoção(ões) vigente(s) registrada(s) • '+s.products+' produtos no catálogo • '+Object.keys(s.configured_sources).join(', ')+' (fonte em teste)';
+  if(!o.offers.length){E('results').innerHTML='<section class="card"><h2>Nenhuma promoção válida registrada</h2><p>Não há preços promocionais confirmados para esta consulta. Os coletores ainda estão em desenvolvimento; o sistema não inventa ofertas.</p></section>';return}
+  const grouped={};for(const offer of o.offers){const key=offer.brand+' | '+(offer.kind||'tipo não identificado');(grouped[key]??=[]).push(offer)}
+  let html='';for(const key of Object.keys(grouped).sort((a,b)=>a.localeCompare(b,'pt-BR'))){
+   const items=grouped[key].sort((a,b)=>a.price/a.quantity-b.price/b.quantity);
+   html+='<section class="card"><h2>'+escapeHtml(key)+'</h2><div class="offers">';
+   for(const [i,x] of items.entries()){html+='<div class="offer '+(i===0?'best':'')+'"><div class="row"><strong>'+escapeHtml(x.market)+'</strong>'+(i===0?'<span class="pill">Melhor desta marca</span>':'')+'</div><h3>'+escapeHtml(x.name)+'</h3><div class="price">'+money(x.price)+'</div><strong>'+money(x.price/x.quantity)+' / '+escapeHtml(x.unit)+'</strong><p><small>Loja: '+escapeHtml(x.store||'não indicada')+'<br>Válida até: '+escapeHtml(x.valid_until)+'<br>Verificada: '+escapeHtml(x.checked_at.slice(0,10))+'<br>'+escapeHtml(x.condition||'')+'</small></p><a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(x.source)+'">Conferir anúncio original</a></div>'}
+   html+='</div></section>'}
+  E('results').innerHTML=html;
+ }catch(err){E('status').textContent='Não foi possível acessar a API do servidor.';E('results').innerHTML='<section class="card warn">A página deve ser aberta pela hospedagem do servidor, não como um arquivo HTML isolado.</section>'}
+}
+E('compare').onclick=load;E('reload').onclick=load;E('search').onkeydown=e=>{if(e.key==='Enter')load()};load();
+</script></body></html>
