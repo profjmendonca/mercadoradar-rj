@@ -1,7 +1,7 @@
 [
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Camil 5kg",
     "brand": "Camil",
     "kind": "não identificado",
@@ -16,7 +16,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Combrasil 5kg",
     "brand": "Combrasil",
     "kind": "não identificado",
@@ -31,7 +31,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Rei do Sul 5kg",
     "brand": "Rei do Sul",
     "kind": "não identificado",
@@ -46,7 +46,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Pillon 5kg",
     "brand": "Pillon",
     "kind": "não identificado",
@@ -61,7 +61,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Máximo 5kg",
     "brand": "Máximo",
     "kind": "não identificado",
@@ -76,7 +76,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Branco Prato Fino 5kg",
     "brand": "Prato Fino",
     "kind": "branco",
@@ -91,7 +91,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Carreteiro 5kg",
     "brand": "Carreteiro",
     "kind": "não identificado",
@@ -106,7 +106,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Ouro Nobre 5kg",
     "brand": "Ouro Nobre",
     "kind": "não identificado",
@@ -121,7 +121,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Arroz Tio João 5kg",
     "brand": "Tio João",
     "kind": "não identificado",
@@ -136,8 +136,8 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
-    "name": "Feijão Preto Combrasil 1kg",
+    "store": "",
+    "name": "Feijão Preto Combrasil Kg",
     "brand": "Combrasil",
     "kind": "preto",
     "quantity": 1,
@@ -151,8 +151,8 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
-    "name": "Feijão Preto Copa 1kg",
+    "store": "",
+    "name": "Feijão Preto Copa Kg",
     "brand": "Copa",
     "kind": "preto",
     "quantity": 1,
@@ -166,7 +166,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Feijão Preto Kicaldo 1kg",
     "brand": "Kicaldo",
     "kind": "preto",
@@ -181,8 +181,8 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
-    "name": "Feijão Preto Macio 1kg",
+    "store": "",
+    "name": "Feijão Preto Macio Kg",
     "brand": "Macio",
     "kind": "preto",
     "quantity": 1,
@@ -196,8 +196,8 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
-    "name": "Feijão Preto Máximo 1kg",
+    "store": "",
+    "name": "Feijão Preto Máximo Kg",
     "brand": "Máximo",
     "kind": "preto",
     "quantity": 1,
@@ -211,7 +211,7 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
+    "store": "",
     "name": "Feijão Preto Panela de Barro 1kg",
     "brand": "Panela de Barro",
     "kind": "preto",
@@ -226,8 +226,8 @@
   },
   {
     "market": "Guanabara",
-    "store": "Rede Guanabara (unidade a confirmar)",
-    "name": "Feijão Preto Sanes 1kg",
+    "store": "",
+    "name": "Feijão Preto Sanes Kg",
     "brand": "Sanes",
     "kind": "preto",
     "quantity": 1,
