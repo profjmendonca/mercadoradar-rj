@@ -370,6 +370,50 @@ def products(q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le
     found = [dict(id=p.id, name=p.name, category=p.category) for p in rows if match(p.name, q)]
     return {"count": len(found), "products": found[:limit]}
 
+@app.get("/api/prices")
+def prices(q: str = Query("", max_length=100), market: str = "", only_promotions: bool = False):
+    """Combined regular and promotional quotes. Stale regular prices and expired offers are excluded."""
+    maybe_refresh(wait=False)
+    with Session(engine) as session:
+        statement = select(Promotion)
+        if market:
+            statement = statement.where(Promotion.market == market)
+        data = session.execute(statement).scalars().all()
+
+    selected = []
+    cutoff = today() - timedelta(days=10)
+    for x in data:
+        try:
+            if x.is_promotion:
+                if not x.valid_until or date.fromisoformat(x.valid_until) < today():
+                    continue
+            else:
+                if only_promotions or date.fromisoformat(x.checked_at[:10]) < cutoff:
+                    continue
+            if canonical(q) == "leite" and canonical(x.name).startswith("desodorante"):
+                continue
+            quality = offer_match(x.name, x.kind, q)
+            if not quality:
+                continue
+            selected.append(dict(
+                id=x.id, market=x.market, store=x.store, name=x.name, brand=x.brand,
+                kind=x.kind, quantity=x.quantity, unit=x.unit, price=x.price, source=x.source,
+                checked_at=x.checked_at, valid_until=x.valid_until or None,
+                condition=x.condition, is_promotion=x.is_promotion, match_quality=quality,
+                is_store_confirmed=bool(x.store),
+            ))
+        except (ValueError, TypeError):
+            continue
+    selected.sort(key=lambda x: (x["match_quality"] != "confirmed", x["kind"], x["unit"], x["price"] / x["quantity"]))
+    per_market = {name: sum(r["market"] == name for r in selected) for name in MARKETS}
+    return {
+        "count": len(selected), "prices": selected[:500],
+        "markets": list(MARKETS), "per_market": per_market, "market_pages": MARKET_PAGES,
+        "confirmed": sum(x["match_quality"] == "confirmed" for x in selected),
+        "type_unspecified": sum(x["match_quality"] == "type_unspecified" for x in selected),
+        "note": "Regular prices are indicative online references until the store is selected; promotions require validity.",
+    }
+
 @app.get("/api/offers")
 def offers(q: str = Query("", max_length=100), market: str = ""):
     with Session(engine) as session:
@@ -401,9 +445,12 @@ def status():
     with Session(engine) as session:
         return {"products": session.query(Product).count(),
                 "offers": session.query(Promotion).filter(Promotion.is_promotion.is_(True), Promotion.valid_until >= today().isoformat()).count(),
+                "regular_prices": session.query(Promotion).filter(Promotion.is_promotion.is_(False), Promotion.checked_at >= (today() - timedelta(days=10)).isoformat()).count(),
+                "collector_enabled": ENABLE_COLLECTOR,
                 "collectors": [{"source": x.source, "last_attempt": x.last_attempt, "last_success": x.last_success,
                                 "last_error": x.last_error, "found": x.found} for x in session.query(CollectorLog).all()],
                 "configured_sources": {"Guanabara": GUANABARA_URL} if ENABLE_COLLECTOR else {},
+                "market_pages": MARKET_PAGES,
                 "markets_without_collector": list(MARKETS[1:]),
                 "database_persistent": not DB.startswith("sqlite:")}
 
@@ -419,3 +466,9 @@ def import_offers(offers: list[IncomingOffer], x_admin_token: str | None = Heade
     if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN:
         raise HTTPException(403, "Token administrativo necessário")
     return {"saved": save_promotions([x.model_dump(mode="json") for x in offers])}
+
+@app.post("/api/admin/prices")
+def import_prices(prices: list[IncomingOffer], x_admin_token: str | None = Header(None)):
+    if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(403, "Token administrativo necessário")
+    return {"saved": save_promotions([x.model_dump(mode="json") for x in prices])}
