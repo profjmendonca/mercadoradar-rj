@@ -34,6 +34,34 @@ def test_catalog_and_search():
             assert any(x["brand"] == "Prato Fino" and x["match_quality"] == "confirmed" for x in white["offers"])
         else:
             assert white["count"] == 0
+        assert client.get("/api/health").json()["version"] == "10.0.0"
+        assert len(client.get("/api/prices", params={"q": "azeite"}).json()["markets"]) == 6
+        assert client.get("/api/products", params={"q": "pasta de dente"}).json()["count"] > 0
+        assert client.get("/api/products", params={"q": "creme dental"}).json()["count"] > 0
+        if main.today() <= date(2026, 11, 15):
+            toothpaste = client.get("/api/prices", params={"q": "pasta de dente"}).json()
+            assert toothpaste["count"] >= 2
+            assert all("dental" in x["name"].lower() for x in toothpaste["prices"])
+            assert "Prezunic" in toothpaste["per_market"]
+            assert toothpaste["per_market"]["Prezunic"] > 0
+            assert toothpaste["per_market"]["Assaí"] == 0
+            milk = client.get("/api/prices", params={"q": "leite"}).json()
+            assert milk["count"] >= 1
+            oil = client.get("/api/prices", params={"q": "azeite"}).json()
+            assert any(x["market"] == "Prezunic" and not x["is_promotion"] for x in oil["prices"])
+            promos = client.get("/api/prices", params={"q": "azeite", "only_promotions": "true"}).json()
+            assert all(x["is_promotion"] for x in promos["prices"])
+        else:
+            assert client.get("/api/prices", params={"q": "pasta de dente"}).json()["count"] == 0
+        sample_other = (f"<div>Validade: {date.today().strftime('%d/%m/%Y')}</div>"
+                        "<div>28,98</div><div>Azeite Extra Virgem Seleção Andorinha 500ml</div>"
+                        "<div>2,99</div><div>Creme de Leite Piracanjuba TP 200g</div>")
+        parsed_other = main.parse_guanabara(sample_other)
+        assert len(parsed_other) == 2
+        assert parsed_other[0]["brand"] == "Andorinha"
+        assert parsed_other[0]["unit"] == "l"
+        assert parsed_other[1]["brand"] == "Piracanjuba"
+        assert parsed_other[1]["unit"] == "kg"
         valid_until = (main.today() + timedelta(days=1)).strftime("%d/%m/%Y")
         sample = (
             f"<div>Validade: {valid_until}</div>"
