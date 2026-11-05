@@ -24,6 +24,16 @@ def test_catalog_and_search():
             assert offers["offers"][0]["market"] == "Guanabara"
         else:
             assert offers["count"] == 0
+        white = client.get("/api/offers", params={"q": "arroz branco"}).json()
+        assert main.offer_match("Arroz Branco Prato Fino 5kg", "branco", "arroz branco") == "confirmed"
+        assert main.offer_match("Arroz Camil 5kg", "não identificado", "arroz branco") == "type_unspecified"
+        assert main.offer_match("Arroz Integral Camil 1kg", "integral", "arroz branco") is None
+        if main.today() <= date(2026, 11, 6):
+            assert white["confirmed"] >= 1
+            assert white["type_unspecified"] >= 1
+            assert any(x["brand"] == "Prato Fino" and x["match_quality"] == "confirmed" for x in white["offers"])
+        else:
+            assert white["count"] == 0
         valid_until = (main.today() + timedelta(days=1)).strftime("%d/%m/%Y")
         sample = (
             f"<div>Validade: {valid_until}</div>"
