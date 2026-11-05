@@ -309,32 +309,42 @@ def parse_guanabara(html, checked_at=None, source=GUANABARA_URL):
 
 lock = threading.Lock()
 last_attempt = 0.
+
 def refresh():
+    """Fetch public promotional categories with bounded concurrency; never guess missing prices."""
     global last_attempt
     if not lock.acquire(blocking=False):
         return
     try:
         last_attempt = time.monotonic()
         now = datetime.now(timezone.utc).isoformat()
-        total, err = 0, None
-        try:
-            request = urllib.request.Request(GUANABARA_URL, headers={"User-Agent": "Mozilla/5.0 (compatible; MercadoRadarRJ/9.2; +https://github.com/profjmendonca/mercadoradar-rj)", "Accept": "text/html", "Accept-Language": "pt-BR,pt;q=0.9"})
-            with urllib.request.urlopen(request, timeout=15) as response:
-                html = response.read(2_500_000).decode("utf-8", "replace")
-            total = save_promotions(parse_guanabara(html, now))
-            if not total:
-                err = "Nenhuma promoção válida extraída"
-        except Exception as exc:
-            err = (type(exc).__name__ + ": " + str(exc))[:500]
-        with Session(engine) as session:
-            row = session.get(CollectorLog, GUANABARA_URL) or CollectorLog(source=GUANABARA_URL)
-            session.add(row)
-            row.last_attempt = now
-            if total:
-                row.last_success = now
-            row.found = total
-            row.last_error = err
-            session.commit()
+
+        def fetch_category(url):
+            try:
+                request = urllib.request.Request(url, headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; MercadoRadarRJ/10.0; +https://github.com/profjmendonca/mercadoradar-rj)",
+                    "Accept": "text/html", "Accept-Language": "pt-BR,pt;q=0.9",
+                })
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    html = response.read(2_500_000).decode("utf-8", "replace")
+                prices = parse_guanabara(html, now, url)
+                return url, len(prices), save_promotions(prices), ("Nenhuma oferta com validade extraída" if not prices else None)
+            except Exception as exc:
+                return url, 0, 0, (type(exc).__name__ + ": " + str(exc))[:450]
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(fetch_category, url) for url in GUANABARA_SOURCES]
+            for future in as_completed(futures):
+                url, found, imported, error = future.result()
+                with Session(engine) as session:
+                    row = session.get(CollectorLog, url) or CollectorLog(source=url)
+                    session.add(row)
+                    row.last_attempt = now
+                    if imported:
+                        row.last_success = now
+                    row.found = found
+                    row.last_error = error
+                    session.commit()
     finally:
         lock.release()
 
