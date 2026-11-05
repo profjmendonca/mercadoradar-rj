@@ -131,7 +131,12 @@ function renderQuotes(){
    html+='<section class="box"><h2>'+escapeHtml(key.split(' | ').join(' · '))+'</h2>';
    if(confirmed&&items.length>1)html+='<div class="info">Menor preço por unidade de medida deste grupo: <strong>'+brl(lowest)+'</strong>, sujeito às condições de cada anúncio.</div>';
    if(!confirmed)html+='<div class="warn">Não confirmado: o tipo do produto não está especificado. Compare somente após conferir a variedade.</div>';
-   html+='<div class="quotes">'+items.map(x=>offerCard(x,lowest,confirmed)).join('')+'</div></section>';
+   const brands={};items.forEach(x=>(brands[x.brand]??=[]).push(x));
+   for(const brand of Object.keys(brands).sort((a,b)=>a.localeCompare(b,'pt-BR'))){
+     html+='<h3 style="margin:14px 0 9px">'+escapeHtml(brand)+'</h3>';
+     html+='<div class="quotes">'+brands[brand].map(x=>offerCard(x,lowest,confirmed)).join('')+'</div>';
+   }
+   html+='</section>';
  }
  el('output').innerHTML=html;
 }
