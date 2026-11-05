@@ -1,56 +1,165 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MercadoRadar RJ | Promoções</title>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#087e5c">
+<title>MercadoRadar RJ — Pesquisa de preços e promoções</title>
 <style>
-:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#173429;background:#f3f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:960px;margin:auto;padding:20px}header{background:linear-gradient(135deg,#087e5c,#10583f);color:#fff;padding:28px;border-radius:18px}h1{margin:0 0 8px}header p{margin:0;opacity:.9}.card{background:#fff;border:1px solid #d5e3db;border-radius:15px;padding:18px;margin:15px 0;box-shadow:0 3px 12px #17452a0a}label{font-weight:650}input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #b9cfc2}input{width:100%;margin-top:10px}button{cursor:pointer;background:#087e5c;color:#fff;border:0;font-weight:600}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.controls select{flex:1;min-width:160px}.muted{color:#597466;font-size:14px}.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}.offer{border:1px solid #d8e8df;border-radius:12px;padding:15px}.best{border-color:#13996b;background:#f3fbf6}.unconfirmed{border-color:#e6bd6c;background:#fffbf1}.group-label{margin:22px 0 12px;font-size:19px}.summary{background:#f2fbf5;border:1px solid #a3dac1;border-radius:12px;padding:14px;margin:12px 0}.summary strong{color:#087e5c}.price{font-size:24px;font-weight:750;color:#087e5c}.pill{display:inline-block;border-radius:12px;padding:4px 9px;background:#e6f4eb;font-size:12px;margin:3px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.warn{background:#fff8e8;border-left:4px solid #e1ad41;padding:12px;border-radius:7px}a{color:#006b4c}small{color:#50665c}h2{margin:0 0 12px;font-size:19px}h3{margin:10px 0}#status{margin-top:12px}#results:empty{display:none}
-</style></head>
-<body><main class="wrap"><header><h1>🛒 MercadoRadar RJ</h1><p>500 produtos pesquisáveis. Somente promoções anunciadas, com prazo de validade e fonte.</p></header>
-<section class="card"><label for="search">O que você procura?</label><input id="search" value="arroz" placeholder="Ex.: arroz, feijão, feijao, feigao..." autocomplete="off">
-<div class="controls"><select id="market"><option value="">Todos os supermercados</option></select><button id="compare">Comparar promoções</button><button id="reload">Atualizar</button></div><div id="status" class="muted">Consultando banco de dados…</div></section>
-<section id="results"></section><section class="card"><h2>Produtos disponíveis para pesquisa</h2><div id="catalog" class="muted"></div></section>
-<p class="muted">Apenas promoções verificadas e dentro da validade. Resultados podem variar por loja, cadastro e estoque. Nenhuma oferta encontrada não significa produto indisponível.</p></main>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f3f7f5;color:#173529}
+*{box-sizing:border-box}body{margin:0}.container{max-width:1090px;padding:16px;margin:0 auto}
+header{background:linear-gradient(125deg,#087e5c,#10583f);color:#fff;padding:26px;border-radius:18px;margin-bottom:15px}
+h1{margin:0 0 5px;font-size:30px}header p{margin:0;font-size:15px;opacity:.94}
+section.box{border:1px solid #d1e2d6;background:#fff;box-shadow:0 4px 17px #102a1510;border-radius:16px;padding:17px;margin-bottom:14px}
+label{font-weight:700;display:block;margin-bottom:7px}
+input,select,button{font:inherit;border-radius:10px;min-height:42px;padding:10px 12px}
+input,select{border:1px solid #b7cdbf;background:white;color:#173529}
+input[type="search"]{width:100%;font-size:17px}
+input:focus,select:focus{outline:2px solid #56ae83;outline-offset:1px}
+button{border:0;background:#087e5c;color:#fff;cursor:pointer;font-weight:700}
+button:hover{background:#06694c}button.secondary{border:1px solid #087e5c;background:white;color:#087e5c}
+.controls{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.controls select{min-width:190px;flex:1}
+.toggle{display:flex;align-items:center;gap:7px;font-weight:500;margin:0;font-size:14px}
+.toggle input{width:18px;height:18px}
+.muted{color:#5b7468;font-size:14px}
+.status{margin-top:11px}
+.marketgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.market{border:1px solid #d9e8de;border-radius:12px;padding:12px;background:#fafffb}
+.market strong{display:block;margin-bottom:5px;font-size:14px}
+.market span{display:block;font-size:13px;color:#5b7468;min-height:34px}
+a{color:#066747}
+.market a{font-size:12px}
+h2{font-size:19px;margin:0 0 12px}
+h3{font-size:16px;margin:0 0 6px}
+.pill{display:inline-block;background:#e5f3e9;border-radius:12px;padding:4px 9px;margin:2px;color:#175637;font-size:12px}
+.warn{background:#fff7e4;border-left:4px solid #dca43f;padding:13px;border-radius:8px;font-size:14px;color:#675221;margin:10px 0}
+.info{padding:11px;border-radius:9px;background:#eaf7f1;color:#15543c;margin:10px 0;font-size:14px}
+.quotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.quote{border-radius:12px;border:1px solid #d7e6dd;padding:14px;min-width:0}
+.best{border:2px solid #18a775;background:#f5fcf8}
+.quote .marketname{font-weight:700}
+.quote .price{font-size:23px;color:#0b7b58;font-weight:800;margin:7px 0 2px}
+.quote .perunit{font-weight:700;font-size:14px}
+.quote .name{font-size:15px;font-weight:650;margin-top:9px}
+.quote small{color:#526c5d;font-size:12px;display:block;margin:5px 0;line-height:1.5}
+.quote a{font-size:13px}
+.flex{display:flex;gap:7px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.results-title{margin:18px 0 9px}
+.catalog button{margin:3px;padding:6px 9px;min-height:30px;border:0;background:#e7f3eb;color:#115f43;font-size:12px;font-weight:500}
+.catalog button:hover{background:#bde2ce}
+.bybrand{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bybrand select{min-width:175px}
+#output:empty{display:none}
+@media(max-width:650px){.controls select,.controls button{width:100%}h1{font-size:26px}header{padding:19px}.container{padding:10px}.quotes{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main class="container">
+<header><h1>🛒 MercadoRadar RJ</h1><p>500 produtos para pesquisar • preços normais e promoções • seis redes do Rio de Janeiro</p></header>
+<section class="box">
+  <label for="query">Qual produto deseja comparar?</label>
+  <input id="query" type="search" placeholder="Ex.: azeite, leite integral, pasta de dente, feigao" value="azeite">
+  <div class="controls">
+    <select id="market" aria-label="Filtrar por supermercado"><option value="">Todos os supermercados</option></select>
+    <button id="compare">Comparar preços</button>
+    <button id="reload" class="secondary">Atualizar</button>
+  </div>
+  <div class="controls">
+    <label class="toggle"><input type="checkbox" id="onlyPromo"> Somente promoções</label>
+    <div class="bybrand"><label for="brand" style="margin:0">Marca:</label><select id="brand"><option value="">Todas as marcas</option></select></div>
+  </div>
+  <div id="status" class="status muted">Carregando dados…</div>
+</section>
+<section class="box"><h2>Cobertura dos seis supermercados</h2><div id="markets" class="marketgrid"></div><p class="muted">Sem cotação significa que a fonte não forneceu um preço verificável; não significa que o supermercado não venda o produto.</p></section>
+<div id="output"></div>
+<section class="box"><h2>Produtos cadastrados para consulta</h2><div id="catalog" class="catalog muted">Carregando os 500 produtos…</div></section>
+<p class="muted">Preços online podem variar conforme filial, CEP, estoque, fidelidade e quantidade. A melhor cotação só é comparável entre produtos equivalentes, na mesma unidade de medida e com as mesmas condições.</p>
+</main>
 <script>
-const E=id=>document.getElementById(id), escapeHtml=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const markets=['Guanabara','Assaí','Prezunic','Mundial','Rede Economia','Supermarket'];
-const incomingQuery=new URLSearchParams(location.search).get('q');if(incomingQuery)E('search').value=incomingQuery.slice(0,100);
-for(const name of markets){const option=document.createElement('option');option.value=name;option.textContent=name;E('market').append(option)}
-async function json(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error('Servidor indisponível');return response.json()}
-async function load(){
- const q=E('search').value.trim(),m=E('market').value;E('status').textContent='Consultando ofertas válidas…';E('results').innerHTML='';
- try{
-  const [p,o,s]=await Promise.all([json('/api/products?q='+encodeURIComponent(q)+'&limit=100'),json('/api/offers?q='+encodeURIComponent(q)+'&market='+encodeURIComponent(m)),json('/api/status')]);
-  E('catalog').innerHTML=p.count+' produto(s) correspondente(s). '+p.products.slice(0,35).map(x=>'<span class="pill">'+escapeHtml(x.name)+'</span>').join('');
-  E('status').textContent=o.count+' promoção(ões) vigente(s) registrada(s) • '+s.products+' produtos no catálogo'+(o.type_unspecified?' • '+o.type_unspecified+' sem variedade confirmada':'');
-  if(!o.offers.length){const issues=(s.collectors||[]).filter(x=>x.last_error).map(x=>escapeHtml(x.last_error)).join('; ');E('results').innerHTML='<section class="card"><h2>Nenhuma promoção válida registrada</h2><p>Não há preços promocionais confirmados para esta consulta. O sistema não inventa ofertas.</p>'+(issues?'<p class="muted">Coletor: '+issues+'</p>':'<p class="muted">O coletor pode ainda não ter atualizado seus dados.</p>')+'</section>';return}
-  const confirmed=o.offers.filter(x=>x.match_quality!=='type_unspecified');
-  const possible=o.offers.filter(x=>x.match_quality==='type_unspecified');
-  let html='';
-  if(confirmed.length){
-    const best=[...confirmed].sort((a,b)=>a.price/a.quantity-b.price/b.quantity)[0];
-    html+='<section class="summary"><strong>Menor preço por '+escapeHtml(best.unit)+' entre os anúncios compatíveis:</strong> '+money(best.price/best.quantity)+'/'+escapeHtml(best.unit)+' — '+escapeHtml(best.name)+' no '+escapeHtml(best.market)+'. <small>Confira marca, embalagem, condições e validade na fonte.</small></section>';
-  }
-  if(possible.length && q.trim()){
-    html+='<section class="card warn"><strong>Resultados adicionais com tipo não informado</strong><p>'+possible.length+' anúncio(s) podem corresponder a "'+escapeHtml(q)+'", mas não indicam a variedade. Estão separados e não participam da escolha de melhor oferta para o tipo solicitado.</p></section>';
-  }
-  const sections=[{title:'Promoções correspondentes',records:confirmed,possible:false},{title:'Anúncios com variedade não identificada',records:possible,possible:true}];
-  for(const section of sections){
-    if(!section.records.length)continue;
-    html+='<h2 class="group-label">'+section.title+'</h2>';
-    const grouped={};
-    for(const offer of section.records){const key=offer.brand+' | '+(offer.kind||'tipo não informado');(grouped[key]??=[]).push(offer)}
-    for(const key of Object.keys(grouped).sort((a,b)=>a.localeCompare(b,'pt-BR'))){
-      const items=grouped[key].sort((a,b)=>a.price/a.quantity-b.price/b.quantity);
-      html+='<section class="card"><h2>'+escapeHtml(key)+'</h2><div class="offers">';
-      for(const [i,x] of items.entries()){
-        const highlight=!section.possible && i===0;
-        html+='<div class="offer '+(highlight?'best':section.possible?'unconfirmed':'')+'"><div class="row"><strong>'+escapeHtml(x.market)+'</strong>'+(highlight?'<span class="pill">Menor preço nesta marca/tipo</span>':section.possible?'<span class="pill">Variedade não confirmada</span>':'')+'</div><h3>'+escapeHtml(x.name)+'</h3><div class="price">'+money(x.price)+'</div><strong>'+money(x.price/x.quantity)+' / '+escapeHtml(x.unit)+'</strong><p><small>Loja: '+escapeHtml(x.store||'não indicada')+'<br>Válida até: '+escapeHtml(x.valid_until)+'<br>Verificada: '+escapeHtml(x.checked_at.slice(0,10))+'<br>'+escapeHtml(x.condition||'')+'</small></p><a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(x.source)+'">Conferir anúncio original</a></div>'
-      }
-      html+='</div></section>'
-    }
-  }
-  E('results').innerHTML=html;
- }catch(err){E('status').textContent='Não foi possível acessar a API do servidor.';E('results').innerHTML='<section class="card warn">A página deve ser aberta pela hospedagem do servidor, não como um arquivo HTML isolado.</section>'}
+const el=id=>document.getElementById(id);
+const escapeHtml=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const brl=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const allMarkets=['Guanabara','Assaí','Prezunic','Mundial','Rede Economia','Supermarket'];
+const sources={'Guanabara':'https://www.supermercadosguanabara.com.br/produtos',
+ 'Assaí':'https://www.assai.com.br/ofertas','Prezunic':'https://www.prezunic.com.br/',
+ 'Mundial':'https://www.supermercadosmundial.com.br/encarte',
+ 'Rede Economia':'https://www.redeconomia.com.br/encartes/',
+ 'Supermarket':'https://redesupermarket.com.br/'};
+for(const name of allMarkets){const o=document.createElement('option');o.value=name;o.textContent=name;el('market').append(o)}
+const qUrl=new URLSearchParams(location.search).get('q');if(qUrl)el('query').value=qUrl.slice(0,100);
+let latest=null;
+async function get(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error('API indisponível: '+response.status);return response.json()}
+function renderMarkets(quotes){
+  const counts={};allMarkets.forEach(x=>counts[x]=0);quotes.forEach(x=>counts[x.market]++);
+  el('markets').innerHTML=allMarkets.map(name=>'<div class="market"><strong>'+escapeHtml(name)+'</strong><span>'+(counts[name]?
+   counts[name]+' cotação(ões) publicada(s)':'Sem cotação verificável nesta consulta')+'</span><a href="'+escapeHtml(sources[name])+'" target="_blank" rel="noopener noreferrer">Consultar a rede</a></div>').join('');
 }
-E('compare').onclick=load;E('reload').onclick=load;E('search').onkeydown=e=>{if(e.key==='Enter')load()};load();
-</script></body></html>
+function offerCard(item,lowest,comparable){
+  const perunit=item.price/item.quantity;
+  const reliable=!!item.is_store_confirmed;
+  const best=lowest&&perunit===lowest&&!item.condition.toLowerCase().includes('exclusivo')&&!item.condition.toLowerCase().includes('cadastrado');
+  const status=item.is_promotion?'<span class="pill">Oferta promocional</span>':'<span class="pill">Preço comum / vitrine online</span>';
+  const noStore=!reliable?'<small>Unidade/CEP não confirmados; preço pode variar.</small>':'';
+  const matchNote=item.match_quality==='type_unspecified'?'<div class="warn">Variedade não confirmada no anúncio. Não usada para indicar a melhor oferta.</div>':'';
+  return '<article class="quote '+(best?'best':'')+'"><div class="flex"><span class="marketname">'+escapeHtml(item.market)+'</span>'+status+'</div>'
+  +'<div class="name">'+escapeHtml(item.name)+'</div>'
+  +'<div class="price">'+brl(item.price)+'</div><div class="perunit">'+brl(perunit)+' / '+escapeHtml(item.unit)+'</div>'
+  +(best&&comparable?'<span class="pill">Menor preço comparável deste grupo</span>':'')
+  +'<small>'+escapeHtml(item.brand)+' • '+escapeHtml(item.kind||'tipo não especificado')+'<br>Consultado: '+escapeHtml((item.checked_at||'').slice(0,10))+(item.valid_until?'<br>Promoção até: '+escapeHtml(item.valid_until):'')+'</small>'
+  +'<small>'+escapeHtml(item.condition||'')+'</small>'+noStore+matchNote
+  +'<a href="'+escapeHtml(item.source)+'" target="_blank" rel="noopener noreferrer">Conferir preço na fonte oficial</a></article>';
+}
+function renderQuotes(){
+ if(!latest)return;
+ const brand=el('brand').value;
+ const all=latest.prices.filter(x=>!brand||x.brand===brand);
+ renderMarkets(all);
+ if(!all.length){
+   el('output').innerHTML='<section class="box"><h2>Sem preço disponível para esta pesquisa</h2><p>O produto existe no catálogo, mas ainda não recebemos uma cotação pública recente para a combinação selecionada. Você pode consultar cada rede pelos links acima.</p></section>';
+   return;
+ }
+ const groups={};all.forEach(item=>{
+   const matchType=item.match_quality==='type_unspecified'?'Variedade não especificada':'Correspondência confirmada';
+   const key=matchType+' | '+(item.kind||'não identificado')+' | '+item.unit;
+   (groups[key]??=[]).push(item);
+ });
+ let html='<section class="box"><h2>'+all.length+' preços encontrados</h2><p class="muted">Agrupados por tipo e unidade. Somente marcas e embalagens equivalentes devem ser comparadas.</p></section>';
+ for(const key of Object.keys(groups).sort()){
+   const items=groups[key].sort((a,b)=>a.price/a.quantity-b.price/b.quantity);
+   const confirmed=items[0].match_quality!=='type_unspecified';
+   const lowest=confirmed?items[0].price/items[0].quantity:null;
+   html+='<section class="box"><h2>'+escapeHtml(key.split(' | ').join(' · '))+'</h2>';
+   if(confirmed&&items.length>1)html+='<div class="info">Menor preço por unidade de medida deste grupo: <strong>'+brl(lowest)+'</strong>, sujeito às condições de cada anúncio.</div>';
+   if(!confirmed)html+='<div class="warn">Não confirmado: o tipo do produto não está especificado. Compare somente após conferir a variedade.</div>';
+   html+='<div class="quotes">'+items.map(x=>offerCard(x,lowest,confirmed)).join('')+'</div></section>';
+ }
+ el('output').innerHTML=html;
+}
+async function load(){
+ const query=el('query').value.trim(),market=el('market').value,only=el('onlyPromo').checked;
+ el('status').textContent='Consultando catálogo e preços registrados…';
+ try{
+ const [p,quotes,status]=await Promise.all([
+   get('/api/products?q='+encodeURIComponent(query)+'&limit=500'),
+   get('/api/prices?q='+encodeURIComponent(query)+'&market='+encodeURIComponent(market)+'&only_promotions='+only),
+   get('/api/status')
+ ]);
+ latest=quotes;
+ el('status').textContent=quotes.count+' preço(s) encontrado(s) • '+p.count+' produto(s) do catálogo • '+status.products+' cadastrados'+(!status.collector_enabled?' • coletor automático desativado':'');
+ el('catalog').innerHTML=p.count+' tipo(s) correspondente(s): <div>'+p.products.slice(0,80).map(x=>'<button type="button" data-product="'+escapeHtml(x.name)+'">'+escapeHtml(x.name)+'</button>').join('')+'</div>';
+ el('catalog').querySelectorAll('[data-product]').forEach(b=>b.onclick=()=>{el('query').value=b.dataset.product;load()});
+ const brands=[...new Set(quotes.prices.map(x=>x.brand))].sort((a,b)=>a.localeCompare(b,'pt-BR'));const chosen=el('brand').value;
+ el('brand').innerHTML='<option value="">Todas as marcas</option>'+brands.map(x=>'<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('');
+ el('brand').value=brands.includes(chosen)?chosen:'';
+ renderQuotes();
+ }catch(e){
+   el('status').textContent='Erro na consulta: '+e.message;
+   el('output').innerHTML='<section class="box"><div class="warn">Não foi possível conectar à API do servidor. Confira se a implantação mais recente está ativa no Render.</div></section>';
+   renderMarkets([]);
+ }
+}
+el('compare').onclick=load;el('reload').onclick=load;el('market').onchange=load;el('onlyPromo').onchange=load;el('brand').onchange=renderQuotes;
+el('query').onkeydown=e=>{if(e.key==='Enter')load()};
+renderMarkets([]);load();
+</script>
+</body></html>
