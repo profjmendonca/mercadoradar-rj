@@ -95,6 +95,25 @@ def match(name, query):
         return True
     return all(any(difflib.SequenceMatcher(None, a, b).ratio() >= .79 for b in words) for a in query.split())
 
+def offer_match(name, kind, query):
+    """Return confirmed or unspecified variety; never label unknown as white/black rice."""
+    if match(name, query):
+        return "confirmed"
+    pieces = canonical(query).split()
+    varieties = {"branco", "preto", "carioca", "integral", "parboilizado"}
+    required = [p for p in pieces if p in varieties]
+    if not required:
+        return None
+    residual = " ".join(p for p in pieces if p not in varieties)
+    if not residual or not match(name, residual):
+        return None
+    declared = normalize(kind)
+    if declared not in ("", "nao identificado", "nao especificado"):
+        return None
+    # Relevant candidate only: its variety must be confirmed with the retailer.
+    return "type_unspecified"
+
+
 class IncomingOffer(BaseModel):
     market: str
     store: str = ""
@@ -269,10 +288,18 @@ def offers(q: str = Query("", max_length=100), market: str = ""):
         if market:
             stmt = stmt.where(Promotion.market == market)
         data = session.execute(stmt).scalars().all()
-        selected = [dict(id=x.id, market=x.market, store=x.store, name=x.name, brand=x.brand, kind=x.kind, quantity=x.quantity, unit=x.unit,
-                         price=x.price, source=x.source, checked_at=x.checked_at, valid_until=x.valid_until, condition=x.condition) for x in data if match(x.name, q)]
-    selected.sort(key=lambda x: x["price"] / x["quantity"])
-    return {"count": len(selected), "offers": selected[:500], "markets": MARKETS, "promotion_only": True}
+        selected = []
+        for x in data:
+            quality = offer_match(x.name, x.kind, q)
+            if not quality:
+                continue
+            selected.append(dict(id=x.id, market=x.market, store=x.store, name=x.name, brand=x.brand, kind=x.kind, quantity=x.quantity, unit=x.unit,
+                                 price=x.price, source=x.source, checked_at=x.checked_at, valid_until=x.valid_until,
+                                 condition=x.condition, match_quality=quality))
+    selected.sort(key=lambda x: (x["match_quality"] != "confirmed", x["price"] / x["quantity"]))
+    return {"count": len(selected), "offers": selected[:500], "markets": MARKETS, "promotion_only": True,
+            "confirmed": sum(x["match_quality"] == "confirmed" for x in selected),
+            "type_unspecified": sum(x["match_quality"] == "type_unspecified" for x in selected)}
 
 @app.get("/api/status")
 def status():
