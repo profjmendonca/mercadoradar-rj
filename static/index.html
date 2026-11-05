@@ -13,6 +13,7 @@
 const E=id=>document.getElementById(id), escapeHtml=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const markets=['Guanabara','Assaí','Prezunic','Mundial','Rede Economia','Supermarket'];
+const incomingQuery=new URLSearchParams(location.search).get('q');if(incomingQuery)E('search').value=incomingQuery.slice(0,100);
 for(const name of markets){const option=document.createElement('option');option.value=name;option.textContent=name;E('market').append(option)}
 async function json(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error('Servidor indisponível');return response.json()}
 async function load(){
