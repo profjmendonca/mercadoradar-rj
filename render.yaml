@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mercadoradar-rj
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.9
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: ENABLE_COLLECTOR
+        value: 'true'
+      - key: REFRESH_INTERVAL_SECONDS
+        value: '3600'
