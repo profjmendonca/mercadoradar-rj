@@ -20,9 +20,9 @@ from sqlalchemy.orm import DeclarativeBase, Session
 
 ROOT = Path(__file__).resolve().parent
 MARKETS = ("Guanabara", "Assaí", "Prezunic", "Mundial", "Rede Economia", "Supermarket")
-GUANABARA_URL = "https://www.supermercadosguanabara.com.br/produtos/2"
+GUANABARA_URL = "https://supermercadosguanabara.com.br/produtos/2"
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
-ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "false").lower() in ("true", "1", "yes")
+ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "true").lower() in ("true", "1", "yes")
 INTERVAL = max(900, int(os.getenv("REFRESH_INTERVAL_SECONDS", "3600")))
 DB = os.getenv("DATABASE_URL", "").strip()
 if not DB:
@@ -134,6 +134,18 @@ def save_promotions(records):
         session.commit()
     return saved
 
+def load_verified_seed():
+    """Load dated, publicly checked promotions. Expired rows are rejected."""
+    path = ROOT / "data" / "promotions_seed_2026_11_05.json"
+    if not path.exists():
+        return 0
+    try:
+        return save_promotions(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        return 0
+
+load_verified_seed()
+
 class PlainText(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -175,16 +187,17 @@ def parse_guanabara(html, checked_at=None):
         name = lines[i + 1]
         if not re.search(r"\b(arroz|feij[aã]o)\b", name, re.I):
             continue
-        weight = re.search(r"(\d+(?:[,.]\d+)?)\s*(kg|g)\b", name, re.I)
+        weight = re.search(r"(?:(\d+(?:[,.]\d+)?)\s*)?(kg|g)\b", name, re.I)
         if not weight:
             continue
-        quantity = float(weight[1].replace(",", ".")) * (.001 if weight[2].lower() == "g" else 1)
+        quantity = float((weight[1] or "1").replace(",", ".")) * (.001 if weight[2].lower() == "g" else 1)
         price = float(re.search(r"\d{1,4}[.,]\d{2}", line)[0].replace(",", "."))
         norm = normalize(name)
         kind = next((k for k in ("preto", "carioca", "parboilizado", "integral", "branco") if k in norm), "não identificado")
         brand = re.sub(r"^\s*(arroz|feij[aã]o)\s*", "", name, flags=re.I)
-        brand = re.sub(r"\s*\d+(?:[,.]\d+)?\s*(kg|g)\b.*$", "", brand, flags=re.I)
-        brand = re.split(r"\b(branco|preto|carioca|tipo)\b", brand, flags=re.I)[0].strip() or "Não identificada"
+        brand = re.sub(r"\b(?:branco|preto|carioca|parboilizado|integral)\b", " ", brand, flags=re.I)
+        brand = re.sub(r"\s*(?:\d+(?:[,.]\d+)?\s*)?(?:kg|g)\b.*$", "", brand, flags=re.I)
+        brand = re.sub(r"\s+", " ", brand).strip() or "Não identificada"
         result.append(dict(market="Guanabara", store="", name=name, brand=brand, kind=kind, quantity=quantity,
                            unit="kg", price=price, source=GUANABARA_URL, checked_at=checked_at or datetime.now(timezone.utc).isoformat(),
                            valid_until=validity.isoformat(), condition="Confira validade e regras na loja", is_promotion=True))
@@ -201,7 +214,7 @@ def refresh():
         now = datetime.now(timezone.utc).isoformat()
         total, err = 0, None
         try:
-            request = urllib.request.Request(GUANABARA_URL, headers={"User-Agent": "MercadoRadar-RJ/9.1", "Accept": "text/html"})
+            request = urllib.request.Request(GUANABARA_URL, headers={"User-Agent": "Mozilla/5.0 (compatible; MercadoRadarRJ/9.2; +https://github.com/profjmendonca/mercadoradar-rj)", "Accept": "text/html", "Accept-Language": "pt-BR,pt;q=0.9"})
             with urllib.request.urlopen(request, timeout=15) as response:
                 html = response.read(2_500_000).decode("utf-8", "replace")
             total = save_promotions(parse_guanabara(html, now))
@@ -221,9 +234,12 @@ def refresh():
     finally:
         lock.release()
 
-def maybe_refresh():
+def maybe_refresh(wait=False):
     if ENABLE_COLLECTOR and time.monotonic() - last_attempt > INTERVAL:
-        threading.Thread(target=refresh, daemon=True).start()
+        if wait:
+            refresh()
+        else:
+            threading.Thread(target=refresh, daemon=True).start()
 
 @app.get("/")
 def home():
@@ -242,7 +258,12 @@ def products(q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le
 
 @app.get("/api/offers")
 def offers(q: str = Query("", max_length=100), market: str = ""):
-    maybe_refresh()
+    with Session(engine) as session:
+        has_current = session.execute(
+            select(Promotion.id).where(Promotion.is_promotion.is_(True), Promotion.valid_until >= today().isoformat()).limit(1)
+        ).first() is not None
+    # On an empty store, complete the first collection before responding.
+    maybe_refresh(wait=not has_current)
     with Session(engine) as session:
         stmt = select(Promotion).where(Promotion.is_promotion.is_(True), Promotion.valid_until >= today().isoformat())
         if market:
