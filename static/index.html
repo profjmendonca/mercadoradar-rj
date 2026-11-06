@@ -84,7 +84,7 @@ const sources={'Guanabara':'https://www.supermercadosguanabara.com.br/produtos',
  'Assaí':'https://www.assai.com.br/ofertas/rio-de-janeiro/','Prezunic':'https://www.prezunic.com.br/',
  'Mundial':'https://www.supermercadosmundial.com.br/encarte',
  'Rede Economia':'https://www.redeconomia.com.br/encartes/',
- 'Supermarket':'https://redesupermarket.com.br/'};
+ 'Supermarket':'https://www.redesupermarket.com.br/ofertas/'};
 for(const name of allMarkets){const o=document.createElement('option');o.value=name;o.textContent=name;el('market').append(o)}
 const qUrl=new URLSearchParams(location.search).get('q');if(qUrl)el('query').value=qUrl.slice(0,100);
 let latest=null;
