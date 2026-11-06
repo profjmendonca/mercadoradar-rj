@@ -26,7 +26,7 @@ GUANABARA_SOURCES = tuple("https://www.supermercadosguanabara.com.br/produtos/" 
                            (2, 12, 22, 32, 42, 52, 62, 72, 82, 92, 102, 112, 152, 203))
 MARKET_PAGES = {
     "Guanabara": "https://www.supermercadosguanabara.com.br/produtos",
-    "Assaí": "https://www.assai.com.br/ofertas",
+    "Assaí": "https://www.assai.com.br/ofertas/rio-de-janeiro/",
     "Prezunic": "https://www.prezunic.com.br/",
     "Mundial": "https://www.supermercadosmundial.com.br/encarte",
     "Rede Economia": "https://www.redeconomia.com.br/encartes/",
