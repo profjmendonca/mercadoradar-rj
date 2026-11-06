@@ -15,6 +15,13 @@ def test_catalog_and_search():
         client = TestClient(main.app)
         assert client.get("/api/health").json()["ok"]
         assert client.get("/api/status").json()["products"] == 500
+        sources = client.get("/api/sources").json()["sources"]
+        assert len(sources) == 6
+        assert sources["Rede Economia"]["url"] == "https://www.redeconomia.com.br/encartes/"
+        assert sources["Rede Economia"]["format"] == "pdf_and_images"
+        assert sources["Rede Economia"]["collector"] == "pending"
+        assert sources["Supermarket"]["url"] == "https://www.redesupermarket.com.br/ofertas/"
+        assert sources["Supermarket"]["collector"] == "pending"
         for q in ("feijão", "feijao", "feigao", "fejao"):
             assert client.get("/api/products", params={"q": q}).json()["count"] > 0
         assert client.get("/api/products", params={"q": "arroz"}).json()["count"] > 0
