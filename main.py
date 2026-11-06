@@ -32,6 +32,14 @@ MARKET_PAGES = {
     "Rede Economia": "https://www.redeconomia.com.br/encartes/",
     "Supermarket": "https://www.redesupermarket.com.br/ofertas/",
 }
+SOURCE_DETAILS = {
+    "Guanabara": {"format": "html", "collector": "experimental", "note": "Coletor experimental de categorias; preços dependem da validade."},
+    "Assaí": {"format": "image", "collector": "pending", "note": "Encarte em imagem; ofertas já registradas manualmente, coleta automática pendente."},
+    "Prezunic": {"format": "web_catalog", "collector": "pending", "note": "Alguns preços de vitrine já cadastrados; sincronização automática pendente."},
+    "Mundial": {"format": "digital_flyer", "collector": "pending", "note": "Encarte digital; importação automática pendente."},
+    "Rede Economia": {"format": "pdf_and_images", "collector": "pending", "note": "Encarte oficial em PDF e imagens; reconhecimento e validação de ofertas ainda pendentes."},
+    "Supermarket": {"format": "html", "collector": "pending", "note": "Página oficial lista produtos e preços, mas a data do anúncio precisa ser validada antes da importação."},
+}
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "true").lower() in ("true", "1", "yes")
 INTERVAL = max(900, int(os.getenv("REFRESH_INTERVAL_SECONDS", "3600")))
@@ -439,6 +447,17 @@ def offers(q: str = Query("", max_length=100), market: str = ""):
     return {"count": len(selected), "offers": selected[:500], "markets": MARKETS, "promotion_only": True,
             "confirmed": sum(x["match_quality"] == "confirmed" for x in selected),
             "type_unspecified": sum(x["match_quality"] == "type_unspecified" for x in selected)}
+
+@app.get("/api/sources")
+def sources():
+    """Source discovery is not proof that any offer has been collected."""
+    return {
+        "sources": {
+            market: {"url": MARKET_PAGES[market], **SOURCE_DETAILS[market]}
+            for market in MARKETS
+        },
+        "note": "Fonte cadastrada não significa preço coletado. Consulte /api/prices para cotações verificadas.",
+    }
 
 @app.get("/api/status")
 def status():
