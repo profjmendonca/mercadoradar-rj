@@ -7,6 +7,8 @@ import threading
 import time
 import unicodedata
 import urllib.request
+from urllib.parse import urljoin, urlsplit
+from fastapi.responses import Response
 from datetime import date, datetime, timezone, timedelta
 from html.parser import HTMLParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -447,6 +449,82 @@ def offers(q: str = Query("", max_length=100), market: str = ""):
     return {"count": len(selected), "offers": selected[:500], "markets": MARKETS, "promotion_only": True,
             "confirmed": sum(x["match_quality"] == "confirmed" for x in selected),
             "type_unspecified": sum(x["match_quality"] == "type_unspecified" for x in selected)}
+
+
+FLYER_HOME = "https://www.redeconomia.com.br/encartes/"
+FLYER_HOSTS = {"www.redeconomia.com.br", "redeconomia.com.br"}
+
+class FlyerLinkParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.items = []
+        self.seen = set()
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        candidates = []
+        if tag == "img":
+            candidates += [attrs.get("src"), attrs.get("data-src"), attrs.get("data-lazy-src")]
+            if attrs.get("srcset"):
+                candidates.append(attrs["srcset"].split(",")[0].strip().split(" ")[0])
+        if tag == "a":
+            candidates += [attrs.get("href")]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            url = urljoin(FLYER_HOME, candidate.strip())
+            p = urlsplit(url)
+            if (p.scheme == "https" and p.hostname in FLYER_HOSTS and
+                p.path.startswith("/wp-content/uploads/") and
+                p.path.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".pdf")) and
+                url not in self.seen):
+                self.seen.add(url)
+                self.items.append({"url": url, "format": "pdf" if p.path.lower().endswith(".pdf") else "image"})
+
+@app.get("/api/flyers")
+def flyers():
+    """Discover original Rede Economia flyers; discovery does not validate prices or dates."""
+    req = urllib.request.Request(FLYER_HOME, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/html"})
+    try:
+        with urllib.request.urlopen(req, timeout=12) as response:
+            html = response.read(1_500_000).decode("utf-8", "replace")
+        parser = FlyerLinkParser()
+        parser.feed(html)
+        return {"market": "Rede Economia", "images": parser.items[:40], "scan_mode": "manual_review_required",
+                "message": "Esses encartes ainda precisam ter a validade e os preços conferidos."}
+    except Exception as exc:
+        return {"market": "Rede Economia", "images": [], "scan_mode": "manual_review_required",
+                "error": (type(exc).__name__ + ": " + str(exc))[:240]}
+
+class RejectRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("Redirecionamento remoto recusado")
+
+@app.get("/api/flyers/image")
+def flyer_image(url: str = Query(..., max_length=1000)):
+    """Bounded same-host proxy for flyer JPEG/PNG/WebP images, to permit browser-side OCR."""
+    p = urlsplit(url)
+    if not (p.scheme == "https" and p.hostname in FLYER_HOSTS and p.port in (None, 443) and
+            p.username is None and p.password is None and
+            p.path.startswith("/wp-content/uploads/") and
+            p.path.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))):
+        raise HTTPException(400, "Imagem não autorizada")
+    try:
+        opener = urllib.request.build_opener(RejectRedirect())
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "image/*"})
+        with opener.open(req, timeout=12) as response:
+            mime = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            size = response.headers.get("Content-Length")
+            if mime not in ("image/jpeg", "image/png", "image/webp"):
+                raise ValueError("O endereço não retornou uma imagem válida")
+            if size and int(size) > 8_000_000:
+                raise ValueError("Imagem maior que o limite de 8 MB")
+            data = response.read(8_000_001)
+            if len(data) > 8_000_000:
+                raise ValueError("Imagem maior que o limite de 8 MB")
+        return Response(content=data, media_type=mime, headers={"Cache-Control": "public,max-age=900"})
+    except (ValueError, OSError) as exc:
+        raise HTTPException(422, str(exc)[:200])
 
 @app.get("/api/sources")
 def sources():
