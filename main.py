@@ -30,7 +30,7 @@ MARKET_PAGES = {
     "Prezunic": "https://www.prezunic.com.br/",
     "Mundial": "https://www.supermercadosmundial.com.br/encarte",
     "Rede Economia": "https://www.redeconomia.com.br/encartes/",
-    "Supermarket": "https://redesupermarket.com.br/",
+    "Supermarket": "https://www.redesupermarket.com.br/ofertas/",
 }
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "true").lower() in ("true", "1", "yes")
