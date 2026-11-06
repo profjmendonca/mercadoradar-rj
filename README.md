@@ -16,6 +16,22 @@ Aplicativo web com **500 categorias de produtos pesquisáveis** e comparação e
 - Catálogo SQLite de 500 produtos carregado automaticamente no primeiro boot.
 - Coletor experimental das 14 categorias de ofertas públicas do Guanabara, acionado por intervalo e sem bloquear a interface.
 
+## Leitor de encartes em imagens (experimental)
+
+Na página principal, abra **Leitor de encartes em imagens**.
+
+1. Clique em **Localizar imagens do encarte** para consultar as imagens oficiais da Rede Economia ou selecione uma foto JPEG, PNG ou WebP (até 8 MB).
+2. Escolha o supermercado e clique em **Ler imagem selecionada**.
+3. O reconhecimento OCR roda no próprio navegador usando [Tesseract.js](https://github.com/naptha/tesseract.js), carregado via CDN na primeira utilização. Ele pode sugerir preços e produtos incorretos, especialmente em encartes com colunas.
+4. Corrija nomes, quantidades, preço e marca. Se o nome não for identificável, marque **Marca não identificada na imagem** e verifique o item pela foto original.
+5. Marque os itens **conferidos**, informe a URL de origem e a **validade impressa no encarte**, e baixe um JSON revisado ou importe com o `ADMIN_TOKEN` do Render.
+
+**Segurança e confiabilidade:** leitura OCR não significa preço confirmado. Nenhum item extraído é enviado ao comparador automaticamente. A importação exige confirmação, validade e token de administrador. O token não é guardado na página nem deve ser compartilhado em conversas. Se não houver data verificável, não publique o preço como vigente.
+
+A descoberta de encartes da Rede Economia lê os links das imagens e PDFs no site oficial (`GET /api/flyers`). O endpoint `GET /api/flyers/image?url=...` serve somente arquivos de imagem contidos no domínio oficial, com tamanho máximo de 8 MB. **PDFs ainda precisam ser convertidos em imagem antes do reconhecimento**; o leitor não analisa páginas PDF diretamente. Encartes do Assaí e outras redes podem ser enviados como imagens locais, e a importação automática de todas as campanhas continua pendente.
+
+O uso do Tesseract.js reduz os custos do servidor gratuito; a qualidade depende do contraste e da resolução das imagens. O cliente precisa conseguir baixar os arquivos de idioma do Tesseract.js.
+
 ## Cobertura atual
 
 | Rede | Situação |
