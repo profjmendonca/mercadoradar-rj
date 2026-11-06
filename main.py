@@ -369,6 +369,11 @@ def maybe_refresh(wait=False):
 def home():
     return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-store, max-age=0"})
 
+@app.get("/assets/flyer-scanner.js")
+def scanner_script():
+    return FileResponse(ROOT / "static" / "flyer-scanner.js", media_type="text/javascript",
+                        headers={"Cache-Control": "no-store, max-age=0"})
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "version": app.version}
