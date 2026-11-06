@@ -89,5 +89,18 @@ def test_catalog_and_search():
         assert parsed[0]["brand"] == "Prato Fino"
         assert parsed[1]["brand"] == "Sanes"
         assert parsed[1]["quantity"] == 1.0
+        # Discoverability and endpoint security for flyer scanning
+        scanner = client.get("/assets/flyer-scanner.js")
+        assert scanner.status_code == 200
+        assert "Marca não identificada na imagem" in scanner.text
+        assert client.get("/api/flyers/image", params={"url": "http://127.0.0.1/admin"}).status_code == 400
+        assert client.get("/api/flyers/image", params={"url": "https://www.redeconomia.com.br/"}).status_code == 400
+        assert client.get("/api/flyers/image", params={"url": "https://www.redeconomia.com.br/wp-content/uploads/2026/11/a.pdf"}).status_code == 400
+        from main import FlyerLinkParser
+        parser = FlyerLinkParser()
+        parser.feed('<img src="/wp-content/uploads/2026/11/ofertas.jpg"><a href="/wp-content/uploads/2026/11/encarte.pdf">PDF</a>')
+        assert len(parser.items) == 2
+        assert parser.items[0]["format"] == "image"
+        assert parser.items[1]["format"] == "pdf"
         assert client.get("/").status_code == 200
         assert client.post("/api/admin/refresh").status_code == 403
