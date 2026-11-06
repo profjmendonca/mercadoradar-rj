@@ -87,12 +87,19 @@ const sources={'Guanabara':'https://www.supermercadosguanabara.com.br/produtos',
  'Supermarket':'https://www.redesupermarket.com.br/ofertas/'};
 for(const name of allMarkets){const o=document.createElement('option');o.value=name;o.textContent=name;el('market').append(o)}
 const qUrl=new URLSearchParams(location.search).get('q');if(qUrl)el('query').value=qUrl.slice(0,100);
-let latest=null;
+let latest=null, registeredSources=null;
 async function get(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error('API indisponível: '+response.status);return response.json()}
 function renderMarkets(quotes){
   const counts={};allMarkets.forEach(x=>counts[x]=0);quotes.forEach(x=>counts[x.market]++);
-  el('markets').innerHTML=allMarkets.map(name=>'<div class="market"><strong>'+escapeHtml(name)+'</strong><span>'+(counts[name]?
-   counts[name]+' cotação(ões) publicada(s)':'Sem cotação verificável nesta consulta')+'</span><a href="'+escapeHtml(sources[name])+'" target="_blank" rel="noopener noreferrer">Consultar a rede</a></div>').join('');
+  el('markets').innerHTML=allMarkets.map(name=>{
+   const info=registeredSources?.[name];
+   const label=info?.collector==='experimental'?'Coletor experimental':'Importação automática pendente';
+   const note=counts[name]?counts[name]+' cotação(ões) publicada(s)':'Sem cotação verificável nesta consulta';
+   const target=info?.url||sources[name];
+   return '<div class="market"><strong>'+escapeHtml(name)+'</strong><span>'+escapeHtml(note)+'</span>'+
+    '<span class="muted">'+escapeHtml(label)+'</span>'+
+    '<a href="'+escapeHtml(target)+'" target="_blank" rel="noopener noreferrer">Ver fonte oficial</a></div>';
+  }).join('');
 }
 function offerCard(item,lowest,comparable){
   const perunit=item.price/item.quantity;
@@ -144,12 +151,14 @@ async function load(){
  const query=el('query').value.trim(),market=el('market').value,only=el('onlyPromo').checked;
  el('status').textContent='Consultando catálogo e preços registrados…';
  try{
- const [p,quotes,status]=await Promise.all([
+ const [p,quotes,status,sourceStatus]=await Promise.all([
    get('/api/products?q='+encodeURIComponent(query)+'&limit=500'),
    get('/api/prices?q='+encodeURIComponent(query)+'&market='+encodeURIComponent(market)+'&only_promotions='+only),
-   get('/api/status')
+   get('/api/status'),
+   get('/api/sources')
  ]);
  latest=quotes;
+ registeredSources=sourceStatus.sources;
  el('status').textContent=quotes.count+' preço(s) encontrado(s) • '+p.count+' produto(s) do catálogo • '+status.products+' cadastrados'+(!status.collector_enabled?' • coletor automático desativado':'');
  el('catalog').innerHTML=p.count+' tipo(s) correspondente(s): <div>'+p.products.slice(0,80).map(x=>'<button type="button" data-product="'+escapeHtml(x.name)+'">'+escapeHtml(x.name)+'</button>').join('')+'</div>';
  el('catalog').querySelectorAll('[data-product]').forEach(b=>b.onclick=()=>{el('query').value=b.dataset.product;load()});
