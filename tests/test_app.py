@@ -38,6 +38,15 @@ def test_catalog_and_search():
         assert len(client.get("/api/prices", params={"q": "azeite"}).json()["markets"]) == 6
         assert client.get("/api/products", params={"q": "pasta de dente"}).json()["count"] > 0
         assert client.get("/api/products", params={"q": "creme dental"}).json()["count"] > 0
+        if main.today() == date(2026, 11, 6):
+            assai_milk = client.get("/api/prices", params={"q": "leite", "market": "Assaí"}).json()
+            assert assai_milk["count"] >= 1
+            assert any(x["brand"] == "Quatá" and x["price"] == 4.39 for x in assai_milk["prices"])
+            assai_olive = client.get("/api/prices", params={"q": "azeite", "market": "Assaí"}).json()
+            assert any(x["brand"] == "Gallo" and x["price"] == 24.90 for x in assai_olive["prices"])
+            assai_beans = client.get("/api/prices", params={"q": "feigao", "market": "Assaí"}).json()
+            assert any(x["brand"] == "Sabor Máximo" for x in assai_beans["prices"])
+            assert all(x["is_promotion"] for x in assai_beans["prices"])
         if main.today() <= date(2026, 11, 15):
             toothpaste = client.get("/api/prices", params={"q": "pasta de dente"}).json()
             assert toothpaste["count"] >= 2
